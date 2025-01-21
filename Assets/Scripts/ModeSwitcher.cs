@@ -14,6 +14,12 @@ public class ModeSwitcher : MonoBehaviour
     private List<GameObject> editorElements = new List<GameObject>();
     private List<GameObject> gameElements = new List<GameObject>();
 
+    public GridLayoutGroup grid2D;          // Référence à la grille 2D (GridLayoutGroup)
+    public Transform grid3DContainer;      // Conteneur pour les objets 3D
+    public GameObject default3DPrefab;     // Prefab par défaut pour représenter les items 3D
+    public Vector3 cellSize3D = new Vector3(1, 0, 1); // Taille des cellules dans la grille 3D
+
+
     void Start()
     {
         // Associer la fonction SwitchMode au bouton
@@ -48,17 +54,18 @@ public class ModeSwitcher : MonoBehaviour
 
     void SetMode(bool editorModeActive)
     {
+
+
         // Activer/Désactiver les éléments du mode éditeur
         ToggleElements(editorElements, editorModeActive);
 
         // Activer/Désactiver les éléments du mode jeu
         ToggleElements(gameElements, !editorModeActive);
-
-        // Mettre à jour le texte du bouton
-        buttonText.text = editorModeActive ? "Passer en mode Jeu" : "Passer en mode Éditeur";
-
-        // Logs pour déboguer
-        Debug.Log(editorModeActive ? "Mode éditeur activé" : "Mode jeu activé");
+        
+        if (!editorModeActive)
+        {
+            Translate2DTo3D();
+        }
     }
 
     void ToggleElements(List<GameObject> elements, bool active)
@@ -72,4 +79,39 @@ public class ModeSwitcher : MonoBehaviour
             }
         }
     }
+
+
+    void Translate2DTo3D()
+{
+    // Supprimer les anciens objets 3D
+    foreach (Transform child in grid3DContainer)
+    {
+        Destroy(child.gameObject);
+    }
+
+    // Parcourir tous les slots de la grille 2D
+    foreach (Transform slot in grid2D.GetComponentInChildren<Transform>())
+    {
+        // Vérifier si le slot contient un item
+        if (slot.childCount > 0)
+        {
+            // Obtenir l'item dans le slot
+            GameObject item2D = slot.GetChild(0).gameObject;
+
+            // Calculer la position 3D correspondante
+            Vector3 position3D = new Vector3(
+                slot.GetSiblingIndex() % grid2D.constraintCount * cellSize3D.x, // Position X
+                0,                                                             // Hauteur Y
+                slot.GetSiblingIndex() / grid2D.constraintCount * cellSize3D.z // Position Z
+            );
+
+            // Instancier le prefab 3D correspondant
+            GameObject item3D = Instantiate(default3DPrefab, position3D, Quaternion.identity, grid3DContainer);
+
+            // Configurer l'item 3D si nécessaire (par exemple, l'échelle ou un matériau)
+            item3D.transform.localScale = Vector3.one; // Ajuster l'échelle
+        }
+    }
+}
+
 }
