@@ -14,11 +14,20 @@ public class ModeSwitcher : MonoBehaviour
     private List<GameObject> editorElements = new List<GameObject>();
     private List<GameObject> gameElements = new List<GameObject>();
 
-    public GridLayoutGroup grid2D;          // Référence à la grille 2D (GridLayoutGroup)
-    public Transform grid3DContainer;      // Conteneur pour les objets 3D
-    public GameObject default3DPrefab;     // Prefab par défaut pour représenter les items 3D
-    public Vector3 cellSize3D = new Vector3(1, 0, 1); // Taille des cellules dans la grille 3D
+    [Header("Grille 2D")]
+    public GridLayoutGroup grid2D;      // Référence à la grille 2D (GridLayoutGroup)
+    
+    [Header("Vue 3D")]
+    public Transform grid3DContainer;   // Conteneur pour les objets 3D
+    public GameObject default3DPrefab;  // Prefab par défaut pour représenter les items 3D
+    public GameObject floor3D;          // Référence au sol 3D
 
+    [Header("Player Spawning")]
+    public GameObject playerPrefab;      // Le prefab du joueur à instancier
+    public Transform playerSpawnPoint;   // Point de spawn (position/rotation) pour le joueur
+
+    // Variable pour stocker le joueur instancié (quand on passe en mode jeu)
+    private GameObject currentPlayer;
 
     void Start()
     {
@@ -48,20 +57,39 @@ public class ModeSwitcher : MonoBehaviour
         // Basculer entre les modes
         isEditorMode = !isEditorMode;
 
-        // Mettre à jour les modes
+        // S'il est possible, détruire ou instancier le joueur avant d'activer/désactiver les éléments
+        if (!isEditorMode)
+        {
+            // On passe EN mode jeu => on instancie le joueur
+            SpawnPlayer();
+        }
+        else
+        {
+            // On repasse en mode éditeur => on détruit le joueur actuel
+            DestroyPlayer();
+        }
+
+        // Mettre à jour l'affichage des éléments
         SetMode(isEditorMode);
+
+        // Mettre à jour le texte du bouton (facultatif)
+        if (buttonText != null)
+        {
+            buttonText.text = isEditorMode 
+                ? "Switch to Game Mode" 
+                : "Switch to Editor Mode";
+        }
     }
 
     void SetMode(bool editorModeActive)
     {
-
-
         // Activer/Désactiver les éléments du mode éditeur
         ToggleElements(editorElements, editorModeActive);
 
         // Activer/Désactiver les éléments du mode jeu
         ToggleElements(gameElements, !editorModeActive);
         
+        // Quand on passe EN mode jeu, on traduit la grille 2D vers la 3D
         if (!editorModeActive)
         {
             Translate2DTo3D();
@@ -80,38 +108,100 @@ public class ModeSwitcher : MonoBehaviour
         }
     }
 
-
-    void Translate2DTo3D()
-{
-    // Supprimer les anciens objets 3D
-    foreach (Transform child in grid3DContainer)
+    /// <summary>
+    /// Instancie le joueur à l'emplacement défini par playerSpawnPoint
+    /// </summary>
+    void SpawnPlayer()
     {
-        Destroy(child.gameObject);
+        if (playerPrefab == null)
+        {
+            Debug.LogWarning("playerPrefab is not assigned in the inspector!");
+            return;
+        }
+        if (playerSpawnPoint == null)
+        {
+            Debug.LogWarning("playerSpawnPoint is not assigned in the inspector!");
+            return;
+        }
+
+        // Instancier le joueur
+        currentPlayer = Instantiate(
+            playerPrefab, 
+            playerSpawnPoint.position, 
+            playerSpawnPoint.rotation
+        );
+
+        // (Optionnel) Renommer pour clarté
+        currentPlayer.name = "Player_Instantiated";
     }
 
-    // Parcourir tous les slots de la grille 2D
-    foreach (Transform slot in grid2D.GetComponentInChildren<Transform>())
+    /// <summary>
+    /// Détruit le joueur si on en a un
+    /// </summary>
+    void DestroyPlayer()
     {
-        // Vérifier si le slot contient un item
-        if (slot.childCount > 0)
+        if (currentPlayer != null)
         {
-            // Obtenir l'item dans le slot
-            GameObject item2D = slot.GetChild(0).gameObject;
-
-            // Calculer la position 3D correspondante
-            Vector3 position3D = new Vector3(
-                slot.GetSiblingIndex() % grid2D.constraintCount * cellSize3D.x, // Position X
-                0,                                                             // Hauteur Y
-                slot.GetSiblingIndex() / grid2D.constraintCount * cellSize3D.z // Position Z
-            );
-
-            // Instancier le prefab 3D correspondant
-            GameObject item3D = Instantiate(default3DPrefab, position3D, Quaternion.identity, grid3DContainer);
-
-            // Configurer l'item 3D si nécessaire (par exemple, l'échelle ou un matériau)
-            item3D.transform.localScale = Vector3.one; // Ajuster l'échelle
+            Destroy(currentPlayer);
+            currentPlayer = null;
         }
     }
-}
 
+    /// <summary>
+    /// Traduit la grille 2D vers le 3D en instanciant des items 3D
+    /// </summary>
+    void Translate2DTo3D()
+    {
+        // 1) Vider d'abord les anciens objets 3D (pour éviter les doublons).
+        foreach (Transform child in grid3DContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        // 2) Récupérer la position et l'échelle du sol
+        Vector3 floorPosition = floor3D.transform.position;
+        Vector3 floorScale    = floor3D.transform.localScale;
+
+        float floorLength = floorScale.x;  // axe X
+        float floorDepth  = floorScale.z;  // axe Z
+        float floorMinX   = floorPosition.x - floorLength / 2f;
+        float floorMinZ   = floorPosition.z - floorDepth  / 2f;
+
+        // 3) Déterminer combien de slots 2D on a
+        int totalSlots = grid2D.transform.childCount;
+
+        int nbColonnes = grid2D.constraintCount;
+        int nbLignes   = Mathf.CeilToInt(totalSlots / (float)nbColonnes);
+
+        // 4) Calculer la taille d'une "parcelle"
+        float parcelSizeX = floorLength / nbColonnes;
+        float parcelSizeZ = floorDepth  / nbLignes;
+
+        // 5) Parcourir tous les slots 2D
+        for (int slotIndex = 0; slotIndex < totalSlots; slotIndex++)
+        {
+            Transform slot2D = grid2D.transform.GetChild(slotIndex);
+
+            // Vérifier si le slot contient un item
+            if (slot2D.childCount > 0)
+            {
+                GameObject item2D = slot2D.GetChild(0).gameObject;
+
+                // 6) Calculer la colonne et la ligne
+                int col = slotIndex % nbColonnes;
+                int row = slotIndex / nbColonnes;
+
+                // 7) Position 3D
+                float posX = floorMinX + col * parcelSizeX + parcelSizeX * 0.5f;
+                float posZ = floorMinZ + row * parcelSizeZ + parcelSizeZ * 0.5f;
+                float posY = floorPosition.y + 1.48f;
+
+                Vector3 item3DPosition = new Vector3(posX, posY, posZ);
+
+                // 8) Instancier l'objet 3D
+                GameObject item3D = Instantiate(default3DPrefab, item3DPosition, Quaternion.identity, grid3DContainer);
+                // item3D.name = item2D.name + "_3D";
+            }
+        }
+    }
 }

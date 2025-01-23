@@ -984,8 +984,8 @@ Transform:
   m_GameObject: {fileID: 102877970}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 12.26}
-  m_LocalScale: {x: 17.679867, y: 1, z: 14.640455}
+  m_LocalPosition: {x: 0, y: 0, z: 14.75}
+  m_LocalScale: {x: 58.5, y: 1, z: 28.7}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 973013317}
@@ -1280,13 +1280,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 105353711}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.18207237, y: -0, z: -0, w: 0.9832851}
-  m_LocalPosition: {x: -0.15, y: 7.36, z: 4.2}
+  m_LocalRotation: {x: 0.27649567, y: -0, z: -0, w: 0.96101516}
+  m_LocalPosition: {x: -0.15, y: 26, z: -11.44}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 20.981, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 32.102, y: 0, z: 0}
 --- !u!1 &132400000
 GameObject:
   m_ObjectHideFlags: 0
@@ -1301,7 +1301,7 @@ GameObject:
   - component: {fileID: 132400002}
   m_Layer: 5
   m_Name: TrashContainer
-  m_TagString: Untagged
+  m_TagString: EditorElement
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1729,6 +1729,7 @@ MonoBehaviour:
   grid3DContainer: {fileID: 929057702}
   default3DPrefab: {fileID: 7169244389848496176, guid: d5c1b47210eedf84ab4ae516047cee92, type: 3}
   cellSize3D: {x: 1, y: 0, z: 1}
+  floor3D: {fileID: 102877970}
 --- !u!224 &145837963 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 4466090186450170771, guid: 4a5d7c2131a5a944fbb3bb01a6246e87, type: 3}

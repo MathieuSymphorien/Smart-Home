@@ -2,7 +2,7 @@
 
 ## Contexte
 
-Ce projet fait partie du **Projet Individuel Innovant (PPI)**, supervisé par **Madame Grislin**, et réalisé dans le cadre de mes études à l'**INSA Hauts-de-France**.
+Ce projet fait partie du **Projet Individuel Innovant (PII)**, supervisé par **Madame Grislin**, et réalisé dans le cadre de mes études à l'**INSA Hauts-de-France**.
 
 ## Objectif
 
@@ -24,7 +24,7 @@ Le but de ce projet est de proposer une expérience innovante autour du concept 
 
 ## Technologies utilisées
 
-- **Unity 3D** : Utilisé pour le développement des interfaces 2D et 3D.
+- **Unity** : Utilisé pour le développement du projet.
 - **C#** : Langage de programmation pour les scripts et la logique du jeu.
 - **Blender** : Utilisé pour la modélisation des objets 3D.
 
