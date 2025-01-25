@@ -190,7 +190,7 @@ public class ModeSwitcher : MonoBehaviour
                 // 6) Calculer la colonne et la ligne
                 int col = slotIndex % nbColonnes;
                 int row = slotIndex / nbColonnes;
-
+                row = (nbLignes - 1) - row;
                 // 7) Position 3D
                 float posX = floorMinX + col * parcelSizeX + parcelSizeX * 0.5f;
                 float posZ = floorMinZ + row * parcelSizeZ + parcelSizeZ * 0.5f;
