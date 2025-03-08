@@ -8,6 +8,7 @@ TagManager:
   - GameElement
   - ToolbarSlot
   - Trash
+  - Wall
   layers:
   - Default
   - TransparentFX

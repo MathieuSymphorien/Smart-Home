@@ -14,12 +14,16 @@ public class ModeSwitcher : MonoBehaviour
     private List<GameObject> editorElements = new List<GameObject>();
     private List<GameObject> gameElements = new List<GameObject>();
 
-    [Header("Grille 2D")]
+    [Header("Grille 2D pour les meubles")]
     public GridLayoutGroup grid2D;      // Référence à la grille 2D (GridLayoutGroup)
+
+    [Header("Grille 2D pour les Murs")]
+    public GridLayoutGroup wallsGrid2D;
     
     [Header("Vue 3D")]
     public Transform grid3DContainer;   // Conteneur pour les objets 3D
     public GameObject default3DPrefab;  // Prefab par défaut pour représenter les items 3D
+    public GameObject wall3DPrefab;    // Prefab pour les murs 3D
     public GameObject floor3D;          // Référence au sol 3D
 
     [Header("Player Spawning")]
@@ -28,6 +32,9 @@ public class ModeSwitcher : MonoBehaviour
 
     // Variable pour stocker le joueur instancié (quand on passe en mode jeu)
     private GameObject currentPlayer;
+
+  
+
 
     void Start()
     {
@@ -150,58 +157,129 @@ public class ModeSwitcher : MonoBehaviour
     /// <summary>
     /// Traduit la grille 2D vers le 3D en instanciant des items 3D
     /// </summary>
-    void Translate2DTo3D()
+   void Translate2DTo3D()
+{
+    // (1) Vider les anciens objets 3D
+    foreach (Transform child in grid3DContainer)
     {
-        // 1) Vider d'abord les anciens objets 3D (pour éviter les doublons).
-        foreach (Transform child in grid3DContainer)
+        Destroy(child.gameObject);
+    }
+
+    // *** PARTIE MEUBLES ***
+    InstancierObjets2DSurLeSol(grid2D);
+
+    // *** PARTIE MURS ***
+    InstancierObjets2DSurLeSol(wallsGrid2D);
+}
+
+// Nouvelle méthode "générique" qui prend en paramètre la grille à scanner
+void InstancierObjets2DSurLeSol(GridLayoutGroup gridToScan)
+{
+    // 1) Récupérer position/échelle du sol
+    Vector3 floorPos   = floor3D.transform.position;
+    Vector3 floorScale = floor3D.transform.localScale;
+
+    float floorLength = floorScale.x;  // axe X
+    float floorDepth  = floorScale.z;  // axe Z
+    float floorMinX   = floorPos.x - floorLength / 2f;
+    float floorMinZ   = floorPos.z - floorDepth  / 2f;
+
+    // 2) Nombre de slots dans la grille
+    int totalSlots   = gridToScan.transform.childCount;
+    int nbColonnes   = gridToScan.constraintCount;
+    int nbLignes     = Mathf.CeilToInt(totalSlots / (float)nbColonnes);
+
+    // 3) Calculer la taille d'une "parcelle"
+    float parcelSizeX = floorLength / nbColonnes;
+    float parcelSizeZ = floorDepth  / nbLignes;
+
+    // 4) Parcourir tous les slots 2D
+    for (int slotIndex = 0; slotIndex < totalSlots; slotIndex++)
+    {
+        Transform slot2D = gridToScan.transform.GetChild(slotIndex);
+
+        if (slot2D.childCount > 0)
         {
-            Destroy(child.gameObject);
-        }
+            // Récupérer l'item 2D
+            GameObject item2D = slot2D.GetChild(0).gameObject;
 
-        // 2) Récupérer la position et l'échelle du sol
-        Vector3 floorPosition = floor3D.transform.position;
-        Vector3 floorScale    = floor3D.transform.localScale;
+            // Calculer la colonne/ligne
+            int col = slotIndex % nbColonnes;
+            int row = slotIndex / nbColonnes;
+            row = (nbLignes - 1) - row; 
 
-        float floorLength = floorScale.x;  // axe X
-        float floorDepth  = floorScale.z;  // axe Z
-        float floorMinX   = floorPosition.x - floorLength / 2f;
-        float floorMinZ   = floorPosition.z - floorDepth  / 2f;
+            // Position 3D
+            float posX = floorMinX + col * parcelSizeX + parcelSizeX * 0.5f;
+            float posZ = floorMinZ + row * parcelSizeZ + parcelSizeZ * 0.5f;
+            float posY = floorPos.y + 1.48f; // À adapter selon la hauteur souhaitée
 
-        // 3) Déterminer combien de slots 2D on a
-        int totalSlots = grid2D.transform.childCount;
+            Vector3 item3DPosition = new Vector3(posX, posY, posZ);
 
-        int nbColonnes = grid2D.constraintCount;
-        int nbLignes   = Mathf.CeilToInt(totalSlots / (float)nbColonnes);
-
-        // 4) Calculer la taille d'une "parcelle"
-        float parcelSizeX = floorLength / nbColonnes;
-        float parcelSizeZ = floorDepth  / nbLignes;
-
-        // 5) Parcourir tous les slots 2D
-        for (int slotIndex = 0; slotIndex < totalSlots; slotIndex++)
-        {
-            Transform slot2D = grid2D.transform.GetChild(slotIndex);
-
-            // Vérifier si le slot contient un item
-            if (slot2D.childCount > 0)
+            // Instancier le bon prefab 3D
+            GameObject item3D;
+            if (item2D.CompareTag("Wall"))
             {
-                GameObject item2D = slot2D.GetChild(0).gameObject;
-
-                // 6) Calculer la colonne et la ligne
-                int col = slotIndex % nbColonnes;
-                int row = slotIndex / nbColonnes;
-                row = (nbLignes - 1) - row;
-                // 7) Position 3D
-                float posX = floorMinX + col * parcelSizeX + parcelSizeX * 0.5f;
-                float posZ = floorMinZ + row * parcelSizeZ + parcelSizeZ * 0.5f;
-                float posY = floorPosition.y + 1.48f;
-
-                Vector3 item3DPosition = new Vector3(posX, posY, posZ);
-
-                // 8) Instancier l'objet 3D
-                GameObject item3D = Instantiate(default3DPrefab, item3DPosition, Quaternion.identity, grid3DContainer);
-                // item3D.name = item2D.name + "_3D";
+                // Si c’est un mur, on utilise le prefab de mur
+                item3D = Instantiate(wall3DPrefab, item3DPosition, Quaternion.identity, grid3DContainer);
+                AdjustWallScale(item3D, col, row, parcelSizeX, parcelSizeZ, nbColonnes, nbLignes, slotIndex, gridToScan);
             }
+            else
+            {
+                // Sinon on instancie le prefab par défaut
+                item3D = Instantiate(default3DPrefab, item3DPosition, Quaternion.identity, grid3DContainer);
+            }
+
+            // Optionnel : renommer l’objet pour debug
+            // item3D.name = item2D.name + "_3D";
         }
     }
+}
+
+
+
+     /// <summary>
+    /// Ajuste l'échelle des murs pour qu'ils soient collés les uns aux autres
+    /// </summary>
+   void AdjustWallScale(
+    GameObject wall3D,
+    int col, int row,
+    float parcelSizeX, float parcelSizeZ,
+    int nbColonnes, int nbLignes,
+    int slotIndex,
+    GridLayoutGroup gridToScan
+)
+{
+    // Vérif des voisins dans gridToScan
+    Transform gridTransform = gridToScan.transform;
+
+    bool hasLeftWall = false;
+    bool hasRightWall = false;
+    bool hasTopWall = false;
+    bool hasBottomWall = false;
+
+    // Gauche
+    if (col > 0)
+    {
+        Transform leftSlot = gridTransform.GetChild(slotIndex - 1);
+        if (leftSlot.childCount > 0 && leftSlot.GetChild(0).CompareTag("Wall"))
+        {
+            hasLeftWall = true;
+        }
+    }
+    // Droite
+    // ... pareil pour top/bas
+
+    // Ajustement final
+    Vector3 wallScale = wall3D.transform.localScale;
+    if (hasLeftWall || hasRightWall)
+    {
+        wallScale.x = parcelSizeX * 2;
+    }
+    if (hasTopWall || hasBottomWall)
+    {
+        wallScale.z = parcelSizeZ * 2;
+    }
+    wall3D.transform.localScale = wallScale;
+}
+
 }

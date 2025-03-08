@@ -12,10 +12,15 @@ public class CharacterMovment : MonoBehaviour
     private Vector3 velocity;
     private float gravity = -9.81f;
 
+    private Animator animator;
+
     void Start()
     {
         // Get the CharacterController component on the same object
         characterController = GetComponent<CharacterController>();
+
+        animator = GetComponent<Animator>(); 
+        Debug.Log("animator : " + animator);
     }
 
     void Update()
@@ -32,6 +37,11 @@ public class CharacterMovment : MonoBehaviour
 
         // Rotate the capsule around the Y-axis
         transform.Rotate(0f, horizontal * turnSpeed * Time.deltaTime, 0f);
+
+        bool isWalking = (Mathf.Abs(vertical) > 0.1f || Mathf.Abs(horizontal) > 0.1f);
+        animator.SetBool("isWalking", isWalking);
+        // Debug.Log("Horizontal: " + horizontal + " / Vertical: " + vertical);
+        // Debug.Log("isWalking: " + isWalking);
 
         // Check if grounded
         if (characterController.isGrounded && velocity.y < 0)
