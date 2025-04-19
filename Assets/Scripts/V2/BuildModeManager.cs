@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class BuildModeManager : MonoBehaviour
 {
@@ -6,6 +7,8 @@ public class BuildModeManager : MonoBehaviour
     [SerializeField] private Camera editCamera;   // La caméra top-down activée en mode édition
     [SerializeField] private LayerMask selectableLayer; // Le layer sur lequel on a nos objets
     [SerializeField] private LayerMask groundLayer;     // Si besoin de détecter un sol/plan
+
+    [SerializeField] private WallSpawnAndScale wallScaleManager;
 
     private SelectableObject currentlySelectedObject;
     private bool isDragging = false;
@@ -16,7 +19,10 @@ public class BuildModeManager : MonoBehaviour
         // 1) Détecter un clic gauche enfoncé (down)
         if (Input.GetMouseButtonDown(0))
         {
-            OnLeftClickDown();
+            if (!IsClickOverUI())
+            {
+                OnLeftClickDown();
+            }
         }
 
         // 2) Si on est en dragging, on déplace l’objet
@@ -89,30 +95,58 @@ public class BuildModeManager : MonoBehaviour
         }
     }
 
-    private void DragSelectedObject()
-{
-    Ray ray = editCamera.ScreenPointToRay(Input.mousePosition);
-    if (Physics.Raycast(ray, out RaycastHit hit, 500f, groundLayer))
+   private void DragSelectedObject()
     {
-        Vector3 newPos = hit.point + dragOffset;
+        // On sauvegarde l’ancienne position
+        Vector3 oldPos = currentlySelectedObject.transform.position;
 
-        // Récupère la hauteur de l'objet :
-        Collider col = currentlySelectedObject.GetComponent<Collider>();
-        if (col != null)
+        Ray ray = editCamera.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out RaycastHit hit, 500f, groundLayer))
         {
-            float halfHeight = col.bounds.extents.y;
-            newPos.y = halfHeight;
-        }
+            // Nouvelle position
+            Vector3 newPos = hit.point + dragOffset;
 
-        currentlySelectedObject.transform.position = newPos;
+            // Ajuster la hauteur, si nécessaire
+            Collider col = currentlySelectedObject.GetComponent<Collider>();
+            if (col != null)
+            {
+                float halfHeight = col.bounds.extents.y;
+                newPos.y = halfHeight;
+            }
+
+            // Appliquer temporairement la nouvelle position
+            currentlySelectedObject.transform.position = newPos;
+
+            // Vérifier la collision avec un mur "Limit"
+            bool isCollidingLimit = IsCollidingWithLimit(currentlySelectedObject.gameObject);
+            if (isCollidingLimit)
+            {
+                // Revenir à l’ancienne position
+                currentlySelectedObject.transform.position = oldPos;
+                Debug.Log("Déplacement bloqué par un mur Limit : revert position.");
+            }
+        }
     }
-}
 
 
     private void SelectObject(SelectableObject newSelection)
     {
         currentlySelectedObject = newSelection;
         currentlySelectedObject.SetSelected(true);
+        // Si l'objet a un "mur" (tag "Wall" ou autre),
+        // on avertit WallSpawnAndScale pour activer le slider.
+        // A vous de définir comment détecter que c’est un mur. Exemples :
+
+        // 1) Vérifier un tag :
+        if (currentlySelectedObject.CompareTag("Wall"))
+        {
+            wallScaleManager.SelectWall(currentlySelectedObject.gameObject);
+        }
+        else
+        {
+            // Ce n’est pas un mur => on désactive le slider
+            wallScaleManager.DeselectWall();
+        }
     }
 
     private void DeselectCurrent()
@@ -122,5 +156,48 @@ public class BuildModeManager : MonoBehaviour
             currentlySelectedObject.SetSelected(false);
             currentlySelectedObject = null;
         }
+        wallScaleManager.DeselectWall();
     }
+
+    /// <summary>
+    /// Vérifie si la souris est sur un élément UI (EventSystem).
+    /// </summary>
+    private bool IsClickOverUI()
+    {
+        return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+    }
+
+
+    /// <summary>
+    /// Renvoie true si l'objet entre en collision avec un mur "Limit".
+    /// </summary>
+    private bool IsCollidingWithLimit(GameObject obj)
+    {
+        Collider objCol = obj.GetComponent<Collider>();
+        if (objCol == null) return false; // pas de collider => on ne bloque pas
+
+        // On récupère le centre et les demi-extents de la bounding box
+        Vector3 center = objCol.bounds.center;
+        Vector3 halfExtents = objCol.bounds.extents;
+        Quaternion rotation = obj.transform.rotation;
+
+        // On récupère tous les colliders dans cette OverlapBox
+        Collider[] hits = Physics.OverlapBox(center, halfExtents, rotation);
+
+        foreach (Collider c in hits)
+        {
+            // On ignore le propre collider de l'objet
+            if (c == objCol) continue;
+
+            // Si c'est un mur limit
+            if (c.CompareTag("Limit"))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Autre alternative : on pourrait faire un 
+    // if (objCol.bounds.Intersects(c.bounds)) ...
 }

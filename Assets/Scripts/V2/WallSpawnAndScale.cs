@@ -10,26 +10,26 @@ public class WallSpawnAndScale : MonoBehaviour
     [SerializeField] private Canvas scaleCanvas;   // Canvas/Panel contenant le Slider
     [SerializeField] private Slider scaleSlider;   // Le Slider pour ajuster l'échelle X
 
-    // Référence au mur fraîchement instancié
-    private GameObject currentSpawnedWall;
-
     // Position fixe où le mur doit apparaître
     private Vector3 spawnPosition = new Vector3(0, 1, 60);
 
+    // L'objet "mur" actuellement sélectionné (si aucun => null)
+    private GameObject selectedWall;
+
     private void Start()
     {
-        // On masque le Canvas au démarrage (si nécessaire)
-        if (scaleCanvas != null)
-            scaleCanvas.gameObject.SetActive(false);
+        // On masque le Canvas au démarrage
+        // if (scaleCanvas != null)
+        //     scaleCanvas.gameObject.SetActive(false);
 
-        // Config du slider (ex. min=0.1, max=5, default=1)
+        // Configure le slider (min=0.1, max=50, default=1) pour une plus grande amplitude
         if (scaleSlider != null)
         {
             scaleSlider.minValue = 0.1f;
-            scaleSlider.maxValue = 5f;
+            scaleSlider.maxValue = 50f;   // <-- plus grand qu'avant
             scaleSlider.value = 1f;
 
-            // On écoute l'événement 'valeur changée' du slider
+            // Écoute l’événement 'valeur changée' du slider
             scaleSlider.onValueChanged.AddListener(OnScaleChanged);
         }
     }
@@ -46,32 +46,106 @@ public class WallSpawnAndScale : MonoBehaviour
         }
 
         // Instancier le mur à (0,1,60)
-        currentSpawnedWall = Instantiate(wallPrefab, spawnPosition, Quaternion.identity);
+        GameObject newWall = Instantiate(wallPrefab, spawnPosition, Quaternion.identity);
+        Debug.Log($"Mur instancié : {newWall.name} à {spawnPosition}");
 
-        Debug.Log($"Mur instancié : {currentSpawnedWall.name} à {spawnPosition}");
-
-        // Afficher le slider pour ajuster l'échelle
-        if (scaleCanvas != null)
-            scaleCanvas.gameObject.SetActive(true);
-
-        // Remet la valeur du slider à 1
-        if (scaleSlider != null)
-            scaleSlider.value = 1f;
+        // NOTE : À ce stade, on ne “sélectionne” pas forcément ce mur.
+        // C'est le BuildModeManager qui gère la sélection quand on clique dessus.
+        // Si vous voulez *automatiquement* sélectionner ce nouveau mur,
+        // vous pouvez soit l'indiquer à BuildModeManager, soit appeler "SelectWall(newWall)" ici.
     }
 
     /// <summary>
-    /// Méthode déclenchée quand on bouge le slider.
-    /// Ajuste uniquement l'échelle X du mur.
+    /// Appelé quand le slider change de valeur.  
+    /// Ajuste uniquement l'échelle X du mur sélectionné.
     /// </summary>
     private void OnScaleChanged(float newScaleValue)
     {
-        if (currentSpawnedWall != null)
+        if (selectedWall == null) return;
+
+        // 1) Sauvegarde de l'échelle actuelle
+        Vector3 oldScale = selectedWall.transform.localScale;
+
+        // 2) On applique temporairement la nouvelle échelle
+        Vector3 testScale = oldScale;
+        testScale.x = newScaleValue;
+        selectedWall.transform.localScale = testScale;
+
+        // 3) Test de collision
+        bool isColliding = IsCollidingWithLimit(selectedWall);
+        if (isColliding)
         {
-            // Récupère l'échelle actuelle
-            Vector3 currentScale = currentSpawnedWall.transform.localScale;
-            // On ne modifie que le X, on garde le Y/Z initiaux
-            currentScale.x = newScaleValue;
-            currentSpawnedWall.transform.localScale = currentScale;
+            // 4) Revenir à l'ancienne échelle
+            selectedWall.transform.localScale = oldScale;
+            Debug.Log("Scale bloquée par un mur Limit : revert scale.");
         }
+    }
+
+    /// <summary>
+    /// Appelé par le BuildModeManager lorsqu’un mur est sélectionné.
+    /// Active le slider et met selectedWall = mur cliqué.
+    /// </summary>
+    public void SelectWall(GameObject wall)
+    {
+        if (wall == null) return;
+
+        selectedWall = wall;
+        
+        // On affiche le canvas et on règle la valeur du slider
+        if (scaleCanvas != null)
+            scaleCanvas.gameObject.SetActive(true);
+
+        // Mettre le slider à la valeur X actuelle du mur
+        if (scaleSlider != null)
+        {
+            float xScale = selectedWall.transform.localScale.x;
+            // Clamp si jamais en dehors des bornes
+            if (xScale < scaleSlider.minValue) xScale = scaleSlider.minValue;
+            if (xScale > scaleSlider.maxValue) xScale = scaleSlider.maxValue;
+
+            scaleSlider.value = xScale;
+        }
+
+        Debug.Log("WallSpawnAndScale => Mur sélectionné : " + wall.name);
+    }
+
+    /// <summary>
+    /// Appelé par le BuildModeManager quand on désélectionne ou qu’on sélectionne autre chose.
+    /// </summary>
+    public void DeselectWall()
+    {
+        selectedWall = null;
+
+        // On masque le slider
+        // if (scaleCanvas != null)
+        //     scaleCanvas.gameObject.SetActive(false);
+
+        Debug.Log("WallSpawnAndScale => Aucun mur sélectionné");
+    }
+
+
+     /// <summary>
+    /// Détecte si l'objet entre en collision avec un mur "Limit"
+    /// </summary>
+    private bool IsCollidingWithLimit(GameObject obj)
+    {
+        Collider objCol = obj.GetComponent<Collider>();
+        if (objCol == null) return false;
+
+        Vector3 center = objCol.bounds.center;
+        Vector3 halfExtents = objCol.bounds.extents;
+        Quaternion rotation = obj.transform.rotation;
+
+        Collider[] hits = Physics.OverlapBox(center, halfExtents, rotation);
+
+        foreach (Collider c in hits)
+        {
+            if (c == objCol) continue; // ignore self
+            if (c.CompareTag("Limit"))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }
