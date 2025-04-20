@@ -16,6 +16,10 @@ public class WallSpawnAndScale : MonoBehaviour
     // L'objet "mur" actuellement sélectionné (si aucun => null)
     private GameObject selectedWall;
 
+    /*  tout en haut de la classe  */
+    private float lastSafeScaleX = 1f;
+
+
     private void Start()
     {
         // On masque le Canvas au démarrage
@@ -59,27 +63,48 @@ public class WallSpawnAndScale : MonoBehaviour
     /// Appelé quand le slider change de valeur.  
     /// Ajuste uniquement l'échelle X du mur sélectionné.
     /// </summary>
-    private void OnScaleChanged(float newScaleValue)
+    void OnScaleChanged(float newScale)
     {
-        if (selectedWall == null) return;
+        if (!selectedWall) return;
 
-        // 1) Sauvegarde de l'échelle actuelle
-        Vector3 oldScale = selectedWall.transform.localScale;
+        // 1) on applique toujours la valeur demandée
+        Vector3 s = selectedWall.transform.localScale;
+        s.x = newScale;
+        selectedWall.transform.localScale = s;
 
-        // 2) On applique temporairement la nouvelle échelle
-        Vector3 testScale = oldScale;
-        testScale.x = newScaleValue;
-        selectedWall.transform.localScale = testScale;
-
-        // 3) Test de collision
-        bool isColliding = IsCollidingWithLimit(selectedWall);
-        if (isColliding)
-        {
-            // 4) Revenir à l'ancienne échelle
-            selectedWall.transform.localScale = oldScale;
-            Debug.Log("Scale bloquée par un mur Limit : revert scale.");
-        }
+        // 2) si le mur a un composant WallSnap, force un snap éventuel
+        if (selectedWall.TryGetComponent(out SnapToNeighbor snap))
+            snap.TrySnap();
     }
+
+
+    bool IsScaleColliding(GameObject wall, Vector3 testScale)
+    {
+        if (!wall.TryGetComponent(out Collider col)) return false;
+
+        /* --- calcule la future bounding‑box --- */
+        // centre = même qu’actuel
+        Vector3 center = col.bounds.center;
+
+        // demi‑extents : on part de l’extent courant puis
+        // on remplace uniquement l’axe X par le futur
+        Vector3 half = col.bounds.extents;
+        float  ratio = testScale.x / wall.transform.localScale.x;
+        half.x *= ratio;
+
+        Quaternion rot = wall.transform.rotation;
+
+        Collider[] hits = Physics.OverlapBox(center, half, rot);
+
+        foreach (var h in hits)
+        {
+            if (h == col) continue;                // on s’ignore soi‑même
+            if (h.CompareTag("Limit")) return true;
+        }
+        return false;
+    }
+
+
 
     /// <summary>
     /// Appelé par le BuildModeManager lorsqu’un mur est sélectionné.
@@ -87,6 +112,7 @@ public class WallSpawnAndScale : MonoBehaviour
     /// </summary>
     public void SelectWall(GameObject wall)
     {
+        lastSafeScaleX = wall.transform.localScale.x;
         if (wall == null) return;
 
         selectedWall = wall;
@@ -120,7 +146,7 @@ public class WallSpawnAndScale : MonoBehaviour
         // if (scaleCanvas != null)
         //     scaleCanvas.gameObject.SetActive(false);
 
-        Debug.Log("WallSpawnAndScale => Aucun mur sélectionné");
+        // Debug.Log("WallSpawnAndScale => Aucun mur sélectionné");
     }
 
 

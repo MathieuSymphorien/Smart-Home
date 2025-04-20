@@ -10,9 +10,21 @@ public class BuildModeManager : MonoBehaviour
 
     [SerializeField] private WallSpawnAndScale wallScaleManager;
 
+    [SerializeField] private LayerMask wallLayer;   // couche des murs (tags Wall | Limit)
+    [SerializeField] private float ceilingHeight = 3f;
+
+
+    [SerializeField] private float lightHeight  = 3.0f;
+[SerializeField] private float sensorHeight = 1.8f;
+
+    private Vector3 lastSafePos;      // dernière position ne touchant pas un mur
+private Vector3 lastMouseOnGround; // pour ajuster l’offset
+
+
     private SelectableObject currentlySelectedObject;
     private bool isDragging = false;
     private Vector3 dragOffset;  // offset entre le point cliqué et le pivot de l’objet
+    private bool isInBuildMode;
 
     void Update()
     {
@@ -58,6 +70,16 @@ public class BuildModeManager : MonoBehaviour
                 currentlySelectedObject.transform.Rotate(Vector3.up, 15f);
             }
         }
+
+        // quand on appuie sur TAB, par exemple
+        if (Input.GetKeyDown(KeyCode.Tab))
+        {
+            bool build = !isInBuildMode;
+            isInBuildMode = build;
+
+            BuildModeEvents.OnBuildMode?.Invoke(build);
+        }
+
     }
 
     private void OnLeftClickDown()
@@ -72,6 +94,8 @@ public class BuildModeManager : MonoBehaviour
             SelectableObject so = hit.collider.GetComponentInParent<SelectableObject>();
             if (so != null)
             {
+                lastSafePos      = so.transform.position;
+                lastMouseOnGround = hit.point; 
                 // Si c'est un autre objet que celui qu'on avait déjà sélectionné,
                 // désélectionner l'ancien, sélectionner le nouveau
                 if (so != currentlySelectedObject)
@@ -94,39 +118,59 @@ public class BuildModeManager : MonoBehaviour
             DeselectCurrent();
         }
     }
+void DragSelectedObject()
+{
+    Ray ray = editCamera.ScreenPointToRay(Input.mousePosition);
+    if (!Physics.Raycast(ray, out var hit, 500f, groundLayer)) return;
 
-   private void DragSelectedObject()
+    /* 1) Nouveau centre candidat ------------------------------------ */
+    Vector3 newPos = hit.point + dragOffset;
+
+    /* --------- Hauteurs fixes --------- */
+    if (currentlySelectedObject.CompareTag("Light"))
+        newPos.y = lightHeight;
+    else if (currentlySelectedObject.CompareTag("MotionSensor"))
+        newPos.y = sensorHeight;
+    else if (currentlySelectedObject.TryGetComponent(out Collider col))
+        newPos.y = col.bounds.extents.y;
+
+    /* 2) Collision ? -------------------------------------------------- */
+    if (IsCollidingWithLimitAt(newPos))
     {
-        // On sauvegarde l’ancienne position
-        Vector3 oldPos = currentlySelectedObject.transform.position;
+        // on se replace PROPREMENT à la dernière position valide
+        currentlySelectedObject.transform.position = lastSafePos;
 
-        Ray ray = editCamera.ScreenPointToRay(Input.mousePosition);
-        if (Physics.Raycast(ray, out RaycastHit hit, 500f, groundLayer))
-        {
-            // Nouvelle position
-            Vector3 newPos = hit.point + dragOffset;
-
-            // Ajuster la hauteur, si nécessaire
-            Collider col = currentlySelectedObject.GetComponent<Collider>();
-            if (col != null)
-            {
-                float halfHeight = col.bounds.extents.y;
-                newPos.y = halfHeight;
-            }
-
-            // Appliquer temporairement la nouvelle position
-            currentlySelectedObject.transform.position = newPos;
-
-            // Vérifier la collision avec un mur "Limit"
-            bool isCollidingLimit = IsCollidingWithLimit(currentlySelectedObject.gameObject);
-            if (isCollidingLimit)
-            {
-                // Revenir à l’ancienne position
-                currentlySelectedObject.transform.position = oldPos;
-                Debug.Log("Déplacement bloqué par un mur Limit : revert position.");
-            }
-        }
+        // et on recalcule l’offset pour suivre correctement la souris
+        dragOffset = lastSafePos - lastMouseOnGround;
+        return;
     }
+
+    /* 3) Tout va bien  →  on valide et on mémorise */
+    currentlySelectedObject.transform.position = newPos;
+    if (currentlySelectedObject.TryGetComponent(out SnapToNeighbor snap))
+        snap.TrySnap();
+    lastSafePos      = newPos;
+    lastMouseOnGround = hit.point;
+}
+
+private bool IsCollidingWithLimitAt(Vector3 pos)
+{
+    Collider objCol = currentlySelectedObject.GetComponent<Collider>();
+    if (!objCol) return false;
+
+    Vector3 half = objCol.bounds.extents;
+    Quaternion rot = currentlySelectedObject.transform.rotation;
+
+    Collider[] hits = Physics.OverlapBox(pos, half, rot);
+    foreach (var c in hits)
+    {
+        if (c == objCol) continue;
+        if (c.CompareTag("Limit") || c.CompareTag("Wall"))
+            return true;
+    }
+    return false;
+}
+
 
 
     private void SelectObject(SelectableObject newSelection)
@@ -167,37 +211,4 @@ public class BuildModeManager : MonoBehaviour
         return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
     }
 
-
-    /// <summary>
-    /// Renvoie true si l'objet entre en collision avec un mur "Limit".
-    /// </summary>
-    private bool IsCollidingWithLimit(GameObject obj)
-    {
-        Collider objCol = obj.GetComponent<Collider>();
-        if (objCol == null) return false; // pas de collider => on ne bloque pas
-
-        // On récupère le centre et les demi-extents de la bounding box
-        Vector3 center = objCol.bounds.center;
-        Vector3 halfExtents = objCol.bounds.extents;
-        Quaternion rotation = obj.transform.rotation;
-
-        // On récupère tous les colliders dans cette OverlapBox
-        Collider[] hits = Physics.OverlapBox(center, halfExtents, rotation);
-
-        foreach (Collider c in hits)
-        {
-            // On ignore le propre collider de l'objet
-            if (c == objCol) continue;
-
-            // Si c'est un mur limit
-            if (c.CompareTag("Limit"))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Autre alternative : on pourrait faire un 
-    // if (objCol.bounds.Intersects(c.bounds)) ...
 }

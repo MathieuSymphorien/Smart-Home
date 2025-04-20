@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 711320182446625919}
   - component: {fileID: 4599935795530112200}
   - component: {fileID: 8929591358076703977}
+  - component: {fileID: 1999007595955283279}
   m_Layer: 7
   m_Name: CubeTest
   m_TagString: Savable
@@ -118,3 +119,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 29eb72f8b8ab9be498d48e61e1906879, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1999007595955283279
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5384087132048454530}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 543d9a69d313bf34596b58e889966078, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  snapDistance: 0.2
+  targetTags:
+  - Wall
+  - MotionSensor
+  - Savable
+  - Limit

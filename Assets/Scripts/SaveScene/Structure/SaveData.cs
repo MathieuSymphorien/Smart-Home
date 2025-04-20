@@ -3,7 +3,7 @@ using System.Collections.Generic;
 [System.Serializable]
 public class SaveData
 {
-    public string saveName;  // Nom unique ou label pour distinguer la sauvegarde
+    public string saveName;
     public List<ObjectSaveData> objects;
 
     public SaveData(string name)
@@ -12,3 +12,4 @@ public class SaveData
         objects = new List<ObjectSaveData>();
     }
 }
+
