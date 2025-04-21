@@ -3,15 +3,19 @@ using UnityEngine.UI;
 using System.Linq;
 using TMPro;
 using UnityEngine.SceneManagement;
+using System.IO;
 
 public class MainMenu : MonoBehaviour
 {
     public SaveManager saveManager;
     public TMP_Dropdown savesDropdown;
+    public TMP_InputField newGameNameField; 
+    public TMP_Dropdown importsDropdown;
 
     private void Start()
     {
         RefreshDropdown();
+        RefreshImports(); 
     }
 
     public void RefreshDropdown()
@@ -33,4 +37,53 @@ public class MainMenu : MonoBehaviour
         // Et on charge la scène du jeu
         SceneManager.LoadScene("GameScene");
     }
+
+    public void OnClickDelete()
+    {
+        int idx = savesDropdown.value;
+        string nameToDelete = savesDropdown.options[idx].text;
+        if (saveManager.DeleteSave(nameToDelete))
+            RefreshDropdown();     // on met l’UI à jour
+    }
+
+    public void OnClickCreateGame()
+    {
+        string saveName = newGameNameField.text.Trim();
+        if (string.IsNullOrEmpty(saveName)) return;
+
+        // crée un fichier vide pour réserver le nom
+        saveManager.CreateNewSave(saveName);           
+        SaveGameHolder.saveNameToLoad = saveName;
+        Debug.Log($"Création de la sauvegarde {SaveGameHolder.saveNameToLoad}");
+        SceneManager.LoadScene("GameScene");           // et on lance la scène
+    }
+
+    /* ---------- Export ---------- */
+public void OnClickExport()
+{
+    int idx = savesDropdown.value;
+    string name = savesDropdown.options[idx].text;
+    saveManager.ExportSaveBare(name);
+}
+
+/* ---------- Import ---------- */
+public void OnClickImport()
+{
+    int idx = importsDropdown.value;
+    string fileName = importsDropdown.options[idx].text;
+    if (saveManager.ImportSaveBare(fileName))
+    {
+        RefreshDropdown();   // maj des parties
+        RefreshImports();    // retire éventuellement le fichier d’Imports si vous le déplacez
+    }
+}
+public void RefreshImports()
+{
+    importsDropdown.ClearOptions();
+    string[] files = Directory.GetFiles(SaveManager.ImportsDir, "*.json")
+                              .Select(Path.GetFileName)  // on affiche juste le nom
+                              .ToArray();
+    importsDropdown.AddOptions(files.ToList());
+}
+
 }

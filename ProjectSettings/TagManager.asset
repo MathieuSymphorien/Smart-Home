@@ -12,6 +12,8 @@ TagManager:
   - editCamera
   - Limit
   - Savable
+  - Light
+  - MotionSensor
   layers:
   - Default
   - TransparentFX

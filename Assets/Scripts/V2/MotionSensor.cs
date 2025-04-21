@@ -249,6 +249,8 @@ public void LinkLight(Light l)
         while (true)
         {
             bool seen = PlayerSeen();
+            // Debug.Log($"Sensor {name} : {seen}");
+            Debug.Log($"Sensor {name} : {linkedLights.Count} lights linked");
             foreach (var l in linkedLights) if (l) l.enabled = seen;
             yield return wait;
         }
