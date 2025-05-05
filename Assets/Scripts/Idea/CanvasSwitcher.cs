@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Représente une entrée (un "slot") liant un nom
-/// et l'objet Canvas/panel correspondant dans la scène.
+/// Représente une entrée (un "slot") liant un nom et l'objet Canvas/panel correspondant dans la scène.
 /// </summary>
 [System.Serializable]
 public class CanvasEntry
@@ -56,17 +55,11 @@ public class CanvasSwitcher : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Fonction d'exemple que tu peux lier à un bouton "Mur".
-    /// </summary>
     public void OnClickShowWalls()
     {
         ShowCanvas("Mur");
     }
 
-    /// <summary>
-    /// Fonction d'exemple que tu peux lier à un bouton "Meuble".
-    /// </summary>
     public void OnClickShowFurniture()
     {
         ShowCanvas("Meuble");

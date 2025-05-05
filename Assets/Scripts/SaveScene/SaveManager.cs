@@ -2,12 +2,14 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 public class SaveManager : MonoBehaviour
 {
     private static string saveFileName = "allSaves.json";
     private SaveDataList saveDataList = new SaveDataList();
 
+    
     private static string GetSaveFilePath() =>
         Path.Combine(Application.persistentDataPath, saveFileName);
     private string rootDir;
@@ -49,8 +51,17 @@ public class SaveManager : MonoBehaviour
     {
         string path = GetSaveFilePath();
         string json = JsonUtility.ToJson(saveDataList, true);
+        Debug.Log($"Sauvegarde de {json} sauvegardes dans {path}");
         File.WriteAllText(path, json);
     }
+
+    public void CreateEmptySave(string saveName)
+    {
+        if (saveDataList.allSaves.Any(s => s.saveName == saveName)) return; // slot déjà présent
+        saveDataList.allSaves.Add(new SaveData(saveName));
+        SaveAllSavesToDisk();
+    }
+
 
     public void CreateNewSave(string saveName)
     {
@@ -67,22 +78,32 @@ public class SaveManager : MonoBehaviour
             return;
         }
 
-        foreach (GameObject obj in objectsToSave)
-        {
-            string prefabName   = obj.name.Replace("(Clone)", "").Trim();
-            string originalTag  = obj.tag;
-            Vector3 pos         = obj.transform.position;
-            Quaternion rot      = obj.transform.rotation;
-            Vector3 scale       = obj.transform.localScale;
+        // SaveManager.cs  – dans CreateNewSave() et OverwriteSave()
+    foreach (GameObject obj in objectsToSave)
+    {
+        string tag          = obj.tag;
+        string prefabKey    = FindPrefabKey(obj);
+        string instanceName = obj.name;              
 
-            var data = new ObjectSaveData(
-                prefabName,
-                originalTag,
-                pos, rot,
-                scale
-            );
-            newSaveData.objects.Add(data);
+        string[] links = null;
+        if (tag == "MotionSensor")
+        {
+            var sensor = obj.GetComponent<MotionSensor>();
+            links = sensor ? sensor.LinkedLightsNames() : null;   // petite méthode helper
         }
+
+        float r = obj.TryGetComponent(out MotionSensor s) ? s.range : 0f;
+        float f = obj.TryGetComponent(out MotionSensor s2) ? s2.fov   : 0f;
+
+        newSaveData.objects.Add(
+            new ObjectSaveData(prefabKey, instanceName, tag,
+                            obj.transform.position,
+                            obj.transform.rotation,
+                            obj.transform.localScale,
+                            r, f,links)
+        );
+    }
+
 
         saveDataList.allSaves.Add(newSaveData);
         SaveAllSavesToDisk();
@@ -90,31 +111,41 @@ public class SaveManager : MonoBehaviour
 
     public void LoadSaveByName(string saveName)
     {
+        var nameToGO = new Dictionary<string, GameObject>();
         var foundSave = saveDataList.allSaves.Find(s => s.saveName == saveName);
         if (foundSave == null)
         {
             Debug.LogWarning($"Aucune sauvegarde avec le nom {saveName}");
             return;
         }
-
+        
         ClearCurrentSceneObjects();
-
-        foreach (var objData in foundSave.objects)
+        foreach (var d in foundSave.objects)
         {
-            GameObject prefab = Resources.Load<GameObject>(objData.prefabName);
-            if (prefab == null)
-            {
-                Debug.LogWarning($"Prefab introuvable : {objData.prefabName}");
-                continue;
-            }
+            GameObject prefab = Resources.Load<GameObject>(d.prefabKey);
+            if (!prefab) { Debug.LogWarning($"Prefab {d.prefabKey} introuvable"); continue; }
 
-            Vector3 position = new Vector3(objData.posX, objData.posY, objData.posZ);
-            Quaternion rotation = new Quaternion(objData.rotX, objData.rotY, objData.rotZ, objData.rotW);
-            Vector3 scale = new Vector3(objData.scaleX, objData.scaleY, objData.scaleZ);
+            var go = Instantiate(prefab,
+                                new Vector3(d.posX, d.posY, d.posZ),
+                                new Quaternion(d.rotX, d.rotY, d.rotZ, d.rotW));
 
-            GameObject newObj = Instantiate(prefab, position, rotation);
-            newObj.tag = objData.originalTag;
-            newObj.transform.localScale = scale;
+            go.name                = d.instanceName;          // remet le nom FR + numéro
+            go.tag                 = d.originalTag;
+            go.transform.localScale= new Vector3(d.scaleX, d.scaleY, d.scaleZ);
+
+            nameToGO[go.name] = go;                           // pour la 2ᵉ passe
+        }
+
+        /* ----- 2ᵉ passage : re-création des liens capteur → lampes ----- */
+        foreach (var d in foundSave.objects.Where(o => o.linkedLightNames != null))
+        {
+            if (!nameToGO.TryGetValue(d.instanceName, out var sensorGO)) continue;
+            var sensor = sensorGO.GetComponent<MotionSensor>();
+            if (!sensor) continue;
+
+            foreach (string lampName in d.linkedLightNames)
+                if (nameToGO.TryGetValue(lampName, out var lampGO))
+                    sensor.LinkLight(lampGO.GetComponent<Light>());
         }
     }
 
@@ -141,33 +172,86 @@ public class SaveManager : MonoBehaviour
         return false;
     }
 
+    public void OverwriteCurrentSave()
+    {
+        OverwriteSave(SaveGameHolder.saveNameToLoad);
+    }
+
+    public void ExitToMenu()
+    {
+        SceneManager.LoadScene("MainMenuScene");
+    }
 
     public List<string> GetAllSaveNames() =>
         saveDataList.allSaves.Select(s => s.saveName).ToList();
 
     
-    public void OverwriteSave(string saveName)
+   public void OverwriteSave(string slot)
 {
-    var existing = saveDataList.allSaves.FirstOrDefault(s => s.saveName == saveName);
-    if (existing == null)
+    if (string.IsNullOrEmpty(slot))
     {
-        CreateNewSave(saveName);          // n’existait pas ? on crée
+        Debug.LogWarning("✖ OverwriteSave : nom de slot vide");
         return;
     }
 
-    existing.objects.Clear();             // on remplit à nouveau
-    var tags = new[] { "Savable", "Wall", "Light", "MotionSensor" };
-    foreach (string tag in tags)
-        foreach (GameObject obj in GameObject.FindGameObjectsWithTag(tag))
-            existing.objects.Add(new ObjectSaveData(
-                obj.name.Replace("(Clone)", "").Trim(),
-                obj.tag,
-                obj.transform.position,
-                obj.transform.rotation,
-                obj.transform.localScale));
+    /* récupère ou crée l’entrée ---------- */
+    var save = saveDataList.allSaves.FirstOrDefault(s => s.saveName == slot);
+    if (save == null)
+    {
+        save = new SaveData(slot);
+        saveDataList.allSaves.Add(save);
+    }
+    save.objects.Clear();
 
+    /* collecte des objets ---------------- */
+    string[] tags = { "Savable", "Wall", "Light", "MotionSensor" };
+    foreach (string t in tags)
+    foreach (GameObject obj in GameObject.FindGameObjectsWithTag(t))
+    {
+        string prefabKey = FindPrefabKey(obj);
+
+        string[] links = null;
+        if (obj.tag == "MotionSensor")
+        {
+            var sensor = obj.GetComponent<MotionSensor>();
+            links = sensor ? sensor.LinkedLightsNames() : null;
+        }
+
+        float r = obj.TryGetComponent(out MotionSensor s) ? s.range : 0f;
+        float f = obj.TryGetComponent(out MotionSensor s2) ? s2.fov   : 0f;
+        
+        save.objects.Add(new ObjectSaveData(
+            prefabKey,
+            obj.name,               // instanceName
+            obj.tag,
+            obj.transform.position,
+            obj.transform.rotation,
+            obj.transform.localScale,
+            r, f,links));
+    }
+
+    Debug.Log($"→ {save.objects.Count} objets enregistrés dans le slot « {slot} »");
     SaveAllSavesToDisk();
 }
+
+// helper unique, réutilisé dans CreateNewSave() et OverwriteSave()
+static string FindPrefabKey(GameObject obj)
+{
+    // 1. retire "(Clone)" + espaces superflus
+    string raw = obj.name.Replace("(Clone)", "").Trim();
+
+    // 2. découpe avant le premier espace (y compris insécable)
+    string shortName = raw.Split(new[] { ' ', '\u00A0' }, 2,
+                          System.StringSplitOptions.RemoveEmptyEntries)[0];
+
+    // 3. traduit si c’est une lampe ou un capteur
+    return PrefabNameMap.LocalToPrefab.TryGetValue(shortName, out var key)
+           ? key              // "Lumière"  →  "Light"
+           : shortName;       // sinon on garde le nom réduit : "Wall", "CubeTest", …
+}
+
+
+
 
 public string ExportSaveBare(string saveName)
 {

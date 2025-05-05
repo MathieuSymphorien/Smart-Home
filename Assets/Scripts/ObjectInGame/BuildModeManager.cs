@@ -8,14 +8,15 @@ public class BuildModeManager : MonoBehaviour
     [SerializeField] private LayerMask selectableLayer; // Le layer sur lequel on a nos objets
     [SerializeField] private LayerMask groundLayer;     // Si besoin de détecter un sol/plan
 
+    [SerializeField] private SelectionUIManager uiManager;
     [SerializeField] private WallSpawnAndScale wallScaleManager;
 
     [SerializeField] private LayerMask wallLayer;   // couche des murs (tags Wall | Limit)
-    [SerializeField] private float ceilingHeight = 3f;
+    // [SerializeField] private float ceilingHeight = 3f;
 
 
-    [SerializeField] private float lightHeight  = 3.0f;
-[SerializeField] private float sensorHeight = 1.8f;
+    public float lightHeight  = 3.0f;
+    public float sensorHeight = 1.8f;
 
     private Vector3 lastSafePos;      // dernière position ne touchant pas un mur
 private Vector3 lastMouseOnGround; // pour ajuster l’offset
@@ -25,6 +26,8 @@ private Vector3 lastMouseOnGround; // pour ajuster l’offset
     private bool isDragging = false;
     private Vector3 dragOffset;  // offset entre le point cliqué et le pivot de l’objet
     private bool isInBuildMode;
+
+    
 
     void Update()
     {
@@ -171,25 +174,39 @@ private bool IsCollidingWithLimitAt(Vector3 pos)
     return false;
 }
 
+/* à l’intérieur de BuildModeManager */
+public void DeleteCurrentSelection()
+{
+    if (currentlySelectedObject == null) return;
+
+    GameObject toDestroy = currentlySelectedObject.gameObject;
+    DeselectCurrent();          // pour nettoyer l’UI
+    Destroy(toDestroy);
+}
 
 
-    private void SelectObject(SelectableObject newSelection)
+
+     private void SelectObject(SelectableObject newSelection)
     {
         currentlySelectedObject = newSelection;
         currentlySelectedObject.SetSelected(true);
-        // Si l'objet a un "mur" (tag "Wall" ou autre),
-        // on avertit WallSpawnAndScale pour activer le slider.
-        // A vous de définir comment détecter que c’est un mur. Exemples :
 
-        // 1) Vérifier un tag :
+        // ---- Mur ? ----
         if (currentlySelectedObject.CompareTag("Wall"))
         {
             wallScaleManager.SelectWall(currentlySelectedObject.gameObject);
+            uiManager.ShowForTag("Wall");
         }
-        else
+        // ---- MotionSensor ? ----
+        else if (currentlySelectedObject.CompareTag("MotionSensor"))
         {
-            // Ce n’est pas un mur => on désactive le slider
             wallScaleManager.DeselectWall();
+            uiManager.ShowForTag("MotionSensor");
+        }
+        else            // autre type
+        {
+            wallScaleManager.DeselectWall();
+            uiManager.ShowForTag("Other");
         }
     }
 
@@ -201,6 +218,7 @@ private bool IsCollidingWithLimitAt(Vector3 pos)
             currentlySelectedObject = null;
         }
         wallScaleManager.DeselectWall();
+        uiManager.HideAll();
     }
 
     /// <summary>

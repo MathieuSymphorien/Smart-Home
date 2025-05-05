@@ -14,7 +14,7 @@ public class CharacterMovment : MonoBehaviour
     private void Start()
     {
         controller = GetComponent<CharacterController>();
-        animator = GetComponent<Animator>(); // récupère l'Animator
+        animator = GetComponent<Animator>();
 
         if (cam == null)
         {

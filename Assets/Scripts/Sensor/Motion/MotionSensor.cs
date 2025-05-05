@@ -45,6 +45,20 @@ public class MotionSensor : MonoBehaviour
 
     readonly List<LineRenderer> linkLines = new();           // 1 line / light
     readonly Dictionary<Renderer, Color> original = new();   // sauvegarde couleurs
+    static readonly Dictionary<Light, LightController> cache = new();
+    LightController ControllerFor(Light l)
+    {
+        if (!l) return null;
+        if (!cache.TryGetValue(l, out var c))
+            cache[l] = c = l.GetComponent<LightController>() ??
+                        l.gameObject.AddComponent<LightController>();
+        return c;
+    }
+
+    public List<Light> LinkedLights => linkedLights; // expose la liste
+
+    public string[] LinkedLightsNames() =>
+    linkedLights.Where(l => l).Select(l => l.name).ToArray();
 
 
      public void SetHighlight(bool on)
@@ -246,14 +260,19 @@ public void LinkLight(Light l)
     IEnumerator VisionLoop()
     {
         WaitForSeconds wait = new(0.1f);
+        bool lastState = false;   // état à la frame précédente
         while (true)
         {
             bool seen = PlayerSeen();
-            // Debug.Log($"Sensor {name} : {seen}");
-            Debug.Log($"Sensor {name} : {linkedLights.Count} lights linked");
-            foreach (var l in linkedLights) if (l) l.enabled = seen;
+            if (seen != lastState)      
+            {
+                foreach (var l in linkedLights)
+                    ControllerFor(l)?.SensorState(seen);
+                lastState = seen;
+            }
             yield return wait;
         }
+
     }
 
     bool PlayerSeen()

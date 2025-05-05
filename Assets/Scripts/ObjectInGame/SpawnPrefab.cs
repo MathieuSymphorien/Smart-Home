@@ -9,6 +9,7 @@ public class SpawnPrefab : MonoBehaviour
 
     [Header("Paramètres de spawn")]
     [SerializeField] private Vector3 spawnPosition = Vector3.zero;
+    [SerializeField] private Vector3 spawnLight = Vector3.zero;
     [SerializeField] private Quaternion spawnRotation = Quaternion.identity;
 
 
@@ -19,14 +20,14 @@ public class SpawnPrefab : MonoBehaviour
 
     /* ---- PARAMÈTRES GÉNÉRAUX ---- */
     [Header("Réglages généraux")]
-    [Tooltip("Hauteur fixe des lampes au‑dessus du sol")]
-    [SerializeField] private float ceilingHeight = 3f;
+    // [Tooltip("Hauteur fixe des lampes au‑dessus du sol")]
+    // [SerializeField] private float ceilingHeight = 3f;
 
 
     [Tooltip("Layer contenant TOUS les murs fixes du niveau")]
     [SerializeField] private LayerMask limitLayer;
 
-    [SerializeField] private float sensorHeight = 1.8f;
+    // [SerializeField] private float sensorHeight = 1.8f;
 
     /* ---- COMPTEURS ---- */
     static int lightCount  = 0;
@@ -44,7 +45,7 @@ public class SpawnPrefab : MonoBehaviour
         Quaternion rot = Quaternion.Euler(90f, 0f, 0f);
 
         // 3) instanciation + renommage
-        GameObject go = Instantiate(lightPrefab, spawnPosition, rot);
+        GameObject go = Instantiate(lightPrefab, spawnLight, rot);
         go.name = $"Lumière {++lightCount}";
 
         // 4) (optionnel) lui donner le tag "Light" pour BuildModeManager

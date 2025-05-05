@@ -33,18 +33,23 @@ public class MainMenu : MonoBehaviour
 
         // On le stocke dans SaveGameHolder
         SaveGameHolder.saveNameToLoad = selectedSaveName;
-
+        
         // Et on charge la scène du jeu
         SceneManager.LoadScene("GameScene");
     }
 
     public void OnClickDelete()
     {
+        if (savesDropdown.options.Count == 0)                     // rien à supprimer
+            return;
+
         int idx = savesDropdown.value;
         string nameToDelete = savesDropdown.options[idx].text;
+
         if (saveManager.DeleteSave(nameToDelete))
-            RefreshDropdown();     // on met l’UI à jour
+            RefreshDropdown();                                    // MAJ UI
     }
+
 
     public void OnClickCreateGame()
     {
@@ -52,9 +57,10 @@ public class MainMenu : MonoBehaviour
         if (string.IsNullOrEmpty(saveName)) return;
 
         // crée un fichier vide pour réserver le nom
-        saveManager.CreateNewSave(saveName);           
+        // saveManager.CreateNewSave(saveName);       
+        saveManager.CreateEmptySave(saveName);
         SaveGameHolder.saveNameToLoad = saveName;
-        Debug.Log($"Création de la sauvegarde {SaveGameHolder.saveNameToLoad}");
+
         SceneManager.LoadScene("GameScene");           // et on lance la scène
     }
 

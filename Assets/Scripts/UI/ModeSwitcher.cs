@@ -2,24 +2,20 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class ModeSwitcherV2 : MonoBehaviour
+public class ModeSwitcher : MonoBehaviour
 {
     [Header("UI")]
-    [SerializeField] private Button switchButton;    // Bouton qui déclenche le switch
-    [SerializeField] private TMP_Text buttonText;    // Texte sur le bouton
-    [SerializeField] private Canvas editorCanvas;    // Le canvas/UI utilisé en mode édition
+    [SerializeField] private Button switchButton;
+    [SerializeField] private TMP_Text buttonText; 
+    [SerializeField] private Canvas editorCanvas;  
 
     [Header("Cameras")]
-    [SerializeField] private Camera editCamera;      // Caméra (ou GameObject) pour le mode édition
+    [SerializeField] private Camera editCamera; 
 
     [Header("Player")]
-    [SerializeField] private GameObject playerPrefab;     // Le prefab du joueur
-    [SerializeField] private Transform playerSpawnPoint;  // Point de spawn pour le joueur
-
-    // Référence du joueur instancié (s’il existe)
+    [SerializeField] private GameObject playerPrefab;    
+    [SerializeField] private Transform playerSpawnPoint; 
     private GameObject currentPlayer;
-
-    // Pour savoir dans quel mode on est (true => édition ; false => jeu)
     private bool isEditorMode = true;
 
     private void Start()
@@ -40,13 +36,9 @@ public class ModeSwitcherV2 : MonoBehaviour
     /// </summary>
     private void SwitchMode()
     {
-        // Inverser l’état
         isEditorMode = !isEditorMode;
-
-        // Appliquer le mode
         SetMode(isEditorMode);
 
-        // Mettre à jour le texte du bouton (facultatif)
         if (buttonText != null)
         {
             buttonText.text = isEditorMode 

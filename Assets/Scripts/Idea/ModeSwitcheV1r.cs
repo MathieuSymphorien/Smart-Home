@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class ModeSwitcher : MonoBehaviour
+public class ModeSwitcherV1 : MonoBehaviour
 {
     public Button switchButton;         // Bouton pour changer de mode
     public TMP_Text buttonText;         // Texte du bouton

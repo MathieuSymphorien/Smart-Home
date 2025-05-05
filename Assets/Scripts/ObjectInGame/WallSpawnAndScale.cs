@@ -51,7 +51,7 @@ public class WallSpawnAndScale : MonoBehaviour
 
         // Instancier le mur à (0,1,60)
         GameObject newWall = Instantiate(wallPrefab, spawnPosition, Quaternion.identity);
-        Debug.Log($"Mur instancié : {newWall.name} à {spawnPosition}");
+        // Debug.Log($"Mur instancié : {newWall.name} à {spawnPosition}");
 
         // NOTE : À ce stade, on ne “sélectionne” pas forcément ce mur.
         // C'est le BuildModeManager qui gère la sélection quand on clique dessus.
@@ -132,7 +132,7 @@ public class WallSpawnAndScale : MonoBehaviour
             scaleSlider.value = xScale;
         }
 
-        Debug.Log("WallSpawnAndScale => Mur sélectionné : " + wall.name);
+        // Debug.Log("WallSpawnAndScale => Mur sélectionné : " + wall.name);
     }
 
     /// <summary>
