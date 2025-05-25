@@ -129,12 +129,12 @@ MonoBehaviour:
   m_BindingMode: 5
   m_SplineCurvature: 0.2
   m_Orbits:
-  - m_Height: 3.35
-    m_Radius: 7.98
-  - m_Height: 2.83
-    m_Radius: 8.69
-  - m_Height: 0.19
-    m_Radius: 6.81
+  - m_Height: 6.05
+    m_Radius: 13
+  - m_Height: 4.48
+    m_Radius: 12.59
+  - m_Height: 2.61
+    m_Radius: 11.2
   m_LegacyHeadingBias: 3.4028235e+38
   m_Rigs:
   - {fileID: 2234064585351160785}
@@ -661,7 +661,7 @@ Transform:
   m_GameObject: {fileID: 4919607060268377886}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.153, z: 5.37}
+  m_LocalPosition: {x: 0, y: 0, z: 5.37}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -732,7 +732,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cam: {fileID: 2700000277931611561}
   speed: 6
-  turnSmoothTime: 0.1
+  rotationSmoothTime: 0.1
 --- !u!137 &5069316329509321550
 SkinnedMeshRenderer:
   m_ObjectHideFlags: 0

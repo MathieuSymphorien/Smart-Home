@@ -131,4 +131,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 543d9a69d313bf34596b58e889966078, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  snapDistance: 3.11
+  snapDistance: 52.91
+  targetTags:
+  - Wall
+  - Furniture
+  - Limit
+  - Savable

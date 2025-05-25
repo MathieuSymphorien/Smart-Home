@@ -4,7 +4,7 @@ using UnityEngine;
 public class SelectableObject : MonoBehaviour
 {
     private Color originalColor;
-    private bool isSelected;
+    private bool isSelected = false;
 
     private Renderer[] renderers;
 

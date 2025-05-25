@@ -118,7 +118,7 @@ public class SaveManager : MonoBehaviour
             Debug.LogWarning($"Aucune sauvegarde avec le nom {saveName}");
             return;
         }
-        
+
         ClearCurrentSceneObjects();
         foreach (var d in foundSave.objects)
         {
@@ -129,11 +129,19 @@ public class SaveManager : MonoBehaviour
                                 new Vector3(d.posX, d.posY, d.posZ),
                                 new Quaternion(d.rotX, d.rotY, d.rotZ, d.rotW));
 
-            go.name                = d.instanceName;          // remet le nom FR + numéro
-            go.tag                 = d.originalTag;
-            go.transform.localScale= new Vector3(d.scaleX, d.scaleY, d.scaleZ);
-
-            nameToGO[go.name] = go;                           // pour la 2ᵉ passe
+            go.name = d.instanceName;          // remet le nom FR + numéro
+            go.tag = d.originalTag;
+            go.transform.localScale = new Vector3(d.scaleX, d.scaleY, d.scaleZ);
+            if (d.originalTag == "MotionSensor")
+            {
+                var sensor = go.GetComponent<MotionSensor>();
+                if (sensor != null)
+                {
+                    sensor.SetRange(d.range);
+                    sensor.SetFov(d.fov);
+                }
+            }
+            nameToGO[go.name] = go;
         }
 
         /* ----- 2ᵉ passage : re-création des liens capteur → lampes ----- */

@@ -3,22 +3,19 @@ using UnityEngine;
 public class CameraController : MonoBehaviour
 {
     [Header("Paramètres de rotation")]
-    public float rotationAngleX = 45f;    // Inclinaison fixe vers le sol
+    public float rotationAngleX = 45f;  
     public float rotationSpeedY = 100f;   // Vitesse de rotation autour de Y (Q/E)
 
     [Header("Paramètres de déplacement")]
-    public float moveSpeed = 10f;         // Vitesse de déplacement (W/S/A/D)
+    public float moveSpeed = 10f;         // Vitesse de déplacement (Z/Q/S/D)
 
     [Header("Paramètres de zoom")]
     public float zoomSpeed = 20f;         // Vitesse de zoom (molette souris)
 
-    // Rotation courante autour de l'axe Y
     private float currentYRotation = 0f;
 
     private void Start()
     {
-        // On fixe l'inclinaison initiale à rotationAngleX, la rotation Y à 0
-        // (ou un autre angle si vous voulez un Y initial différent)
         currentYRotation = transform.eulerAngles.y;
         ApplyRotation();
     }
@@ -54,12 +51,12 @@ public class CameraController : MonoBehaviour
     }
 
     /// <summary>
-    /// Gère les déplacements W/S/A/D dans le plan, mais en suivant l'orientation Y de la caméra
+    /// Gère les déplacements Z/Q/S/D dans le plan, mais en suivant l'orientation Y de la caméra
     /// </summary>
     private void HandleMovement()
     {
-        float horizontal = Input.GetAxis("Horizontal"); // A/D ou flèches gauche/droite
-        float vertical   = Input.GetAxis("Vertical");   // W/S ou flèches haut/bas
+        float horizontal = Input.GetAxis("Horizontal"); // Q/D ou flèches gauche/droite
+        float vertical   = Input.GetAxis("Vertical");   // Z/S ou flèches haut/bas
 
         // Déterminer la direction "avant" de la caméra, ignorante du pitch pour ne pas bouger en Y
         Vector3 forward = transform.forward;

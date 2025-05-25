@@ -154,7 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fov: 70
-  range: 6
+  range: 1
   occluders:
     serializedVersion: 2
     m_Bits: 128

@@ -294,11 +294,6 @@ public void LinkLight(Light l)
         return false;
     }
 
-
-
-
-
-
     /* ---------- VISUEL DU CÔNE (LineRenderer) ---------- */
     /* ---------- BUILD DU VISUEL RUNTIME ---------- */
 void BuildConeVisual()

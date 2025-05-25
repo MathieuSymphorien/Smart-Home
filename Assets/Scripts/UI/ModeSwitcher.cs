@@ -118,4 +118,5 @@ public class ModeSwitcher : MonoBehaviour
             currentPlayer = null;
         }
     }
+    
 }

@@ -1,5 +1,7 @@
 using System.Linq;
 using UnityEngine;
+using System.Text.RegularExpressions;
+using UnityEngine.SceneManagement;
 
 public class SpawnPrefab : MonoBehaviour
 {
@@ -27,12 +29,30 @@ public class SpawnPrefab : MonoBehaviour
     [Tooltip("Layer contenant TOUS les murs fixes du niveau")]
     [SerializeField] private LayerMask limitLayer;
 
-    // [SerializeField] private float sensorHeight = 1.8f;
 
-    /* ---- COMPTEURS ---- */
-    static int lightCount  = 0;
-    static int sensorCount = 0;
+    /* ───── HELPERS PRIVÉS ───── */
+    /// <summary>
+    /// Retourne le prochain index disponible pour un tag et un motif donnés.
+    /// Exemple : si la scène contient « Caméra 3 », renvoie 4.
+    /// </summary>
+    static int NextIndex(string tag, string regex)
+    {
+        var rx    = new Regex(regex, RegexOptions.IgnoreCase);
+        var scene = SceneManager.GetActiveScene();
 
+        var indices =
+            Object.FindObjectsOfType<Transform>(true)          // tous les objets
+                  .Where(t => t.CompareTag(tag)                 // …ayant ce tag
+                           && t.gameObject.scene == scene)      // …dans cette scène
+                  .Select(t => rx.Match(t.name))
+                  .Where(m => m.Success &&
+                              int.TryParse(m.Groups[1].Value, out _))
+                  .Select(m => int.Parse(m.Groups[1].Value));
+        Debug.Log(FindObjectsOfType<Transform>(true));
+        return indices.DefaultIfEmpty(0).Max() + 1;             // suivant
+    }
+
+    /* ───── SPAWN LAMPES ───── */
     public void SpawnLight()
     {
         if (!lightPrefab)
@@ -41,41 +61,39 @@ public class SpawnPrefab : MonoBehaviour
             return;
         }
 
-        // 2) rotation 90° sur X (= projecteur vers le bas)
-        Quaternion rot = Quaternion.Euler(90f, 0f, 0f);
-
-        // 3) instanciation + renommage
+        Quaternion rot = Quaternion.Euler(90f, 0f, 0f);          // projecteur vers le bas
         GameObject go = Instantiate(lightPrefab, spawnLight, rot);
-        go.name = $"Lumière {++lightCount}";
-
-        // 4) (optionnel) lui donner le tag "Light" pour BuildModeManager
-        go.tag = "Light";
+        // Debug.Log(NextIndex());
+        int n = NextIndex("Light",  @"Lumière[\u00A0 ]*(\d+)");
+        go.name = $"Lumière {n}";
+        go.tag  = "Light";
     }
 
+    /* ───── SPAWN CAPTEURS ───── */
     public void SpawnMotionSensor()
     {
-        if (!sensorPrefab) { Debug.LogWarning("SensorPrefab manquant"); return; }
+        if (!sensorPrefab)
+        {
+            Debug.LogWarning("[SpawnPrefab] SensorPrefab manquant !");
+            return;
+        }
 
-        
-        Quaternion rot = sensorPrefab.transform.rotation;    
+        Quaternion rot = sensorPrefab.transform.rotation;
+        GameObject go = Instantiate(sensorPrefab, spawnPosition, rot);
 
-        var go = Instantiate(sensorPrefab, spawnPosition, rot);
-        go.name = $"Caméra {++sensorCount}";
+        int n = NextIndex("MotionSensor",  @"Caméra[\u00A0 ]*(\d+)");
+        go.name = $"Caméra {n}";
         go.tag  = "MotionSensor";
     }
 
-    
+    /* ---- Spawn générique (inchangé) ---- */
     public void SpawnItem()
     {
-
-        if (prefabToSpawn != null)
-        {
-            
+        if (prefabToSpawn)
             Instantiate(prefabToSpawn, spawnPosition, spawnRotation);
-        }
         else
-        {
-            Debug.LogWarning("Le champ prefabToSpawn n’est pas renseigné dans l’Inspector !");
-        }
+            Debug.LogWarning("Le champ prefabToSpawn n’est pas renseigné !");
     }
+        
 }
+

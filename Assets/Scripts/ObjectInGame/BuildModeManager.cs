@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -27,7 +28,11 @@ private Vector3 lastMouseOnGround; // pour ajuster l’offset
     private Vector3 dragOffset;  // offset entre le point cliqué et le pivot de l’objet
     private bool isInBuildMode;
 
-    
+
+    void Start()
+    {
+        DeselectCurrent();
+    }
 
     void Update()
     {
@@ -83,6 +88,13 @@ private Vector3 lastMouseOnGround; // pour ajuster l’offset
             BuildModeEvents.OnBuildMode?.Invoke(build);
         }
 
+        // ctrl C pour dupliquer
+        if (Input.GetKeyDown(KeyCode.C) && Input.GetKey(KeyCode.LeftControl))
+            DuplicateCurrentSelection();
+        // ctrl X pour supprimer
+        if (Input.GetKeyDown(KeyCode.X) && Input.GetKey(KeyCode.LeftControl))
+            DeleteCurrentSelection();
+
     }
 
     private void OnLeftClickDown()
@@ -91,7 +103,9 @@ private Vector3 lastMouseOnGround; // pour ajuster l’offset
         Ray ray = editCamera.ScreenPointToRay(Input.mousePosition);
 
         // Vérifier si on touche un objet sélectionnable
-        if (Physics.Raycast(ray, out RaycastHit hit, 500f, selectableLayer))
+        if (Physics.Raycast(ray, out RaycastHit hit,
+                    500f, selectableLayer,
+                    QueryTriggerInteraction.Ignore))
         {
             // Récupérer le script SelectableObject
             SelectableObject so = hit.collider.GetComponentInParent<SelectableObject>();
@@ -123,11 +137,19 @@ private Vector3 lastMouseOnGround; // pour ajuster l’offset
     }
 void DragSelectedObject()
 {
+
     Ray ray = editCamera.ScreenPointToRay(Input.mousePosition);
     if (!Physics.Raycast(ray, out var hit, 500f, groundLayer)) return;
 
     /* 1) Nouveau centre candidat ------------------------------------ */
     Vector3 newPos = hit.point + dragOffset;
+
+    // hauteur = moitié de la taille Y du collider principal
+    Collider physCol = MainCollider(currentlySelectedObject.gameObject);
+    if (physCol)
+    {
+        newPos.y = physCol.bounds.extents.y;
+    }
 
     /* --------- Hauteurs fixes --------- */
     if (currentlySelectedObject.CompareTag("Light"))
@@ -151,20 +173,39 @@ void DragSelectedObject()
     /* 3) Tout va bien  →  on valide et on mémorise */
     currentlySelectedObject.transform.position = newPos;
     if (currentlySelectedObject.TryGetComponent(out SnapToNeighbor snap))
+    {
         snap.TrySnap();
+        newPos = currentlySelectedObject.transform.position; 
+    }
     lastSafePos      = newPos;
     lastMouseOnGround = hit.point;
 }
 
+// -----------------------------------------------------------------
+// renvoie le 1ᵉʳ Collider non‑trigger trouvé (Box, Capsule, Mesh…)
+// -----------------------------------------------------------------
+private static Collider MainCollider(GameObject go)
+{
+    foreach (var c in go.GetComponents<Collider>())
+        if (!c.isTrigger) return c;          // ← on ignore SphereCollider trigger
+
+    return go.GetComponent<Collider>();      // fallback (au cas où)
+}
+
+
 private bool IsCollidingWithLimitAt(Vector3 pos)
 {
-    Collider objCol = currentlySelectedObject.GetComponent<Collider>();
+    Collider objCol = MainCollider(currentlySelectedObject.gameObject);
     if (!objCol) return false;
 
     Vector3 half = objCol.bounds.extents;
     Quaternion rot = currentlySelectedObject.transform.rotation;
 
-    Collider[] hits = Physics.OverlapBox(pos, half, rot);
+    // OverlapBoxes SANS TRIGGER
+    Collider[] hits = Physics.OverlapBox(pos, half, rot,
+                                        ~0,
+                                        QueryTriggerInteraction.Ignore);
+
     foreach (var c in hits)
     {
         if (c == objCol) continue;
@@ -172,16 +213,59 @@ private bool IsCollidingWithLimitAt(Vector3 pos)
             return true;
     }
     return false;
+
 }
 
-/* à l’intérieur de BuildModeManager */
 public void DeleteCurrentSelection()
 {
     if (currentlySelectedObject == null) return;
 
     GameObject toDestroy = currentlySelectedObject.gameObject;
-    DeselectCurrent();          // pour nettoyer l’UI
+    DeselectCurrent();
     Destroy(toDestroy);
+}
+
+
+public void DuplicateCurrentSelection()
+{
+    if (currentlySelectedObject == null) return;
+
+    GameObject original = currentlySelectedObject.gameObject;
+
+    // On instancie le clone juste à côté pour qu’il ne se superpose pas
+    Vector3 offset = Vector3.right * 0.5f;      // décale de 0,5 m à droite
+    GameObject clone = Instantiate(
+        original,
+        original.transform.position + offset,
+        original.transform.rotation,
+        original.transform.parent);              // garde la même hiérarchie
+
+    // Nouveau nom unique
+    clone.name = GenerateUniqueName(original.name);
+
+    // Sélection du clone
+    DeselectCurrent();
+    SelectObject(clone.GetComponent<SelectableObject>());
+}
+
+
+private string GenerateUniqueName(string originalName)
+{
+    // Séparation du texte et du suffixe numérique éventuel
+    Match m = Regex.Match(originalName, @"^(.*?)(\d+)?$");
+    string basePart = m.Groups[1].Value;
+    int    number   = m.Groups[2].Success ? int.Parse(m.Groups[2].Value) + 1 : 1;
+
+    string candidate;
+    do
+    {
+        candidate = $"{basePart}{number}";
+        number++;
+    }
+    // Tant qu'un objet du même nom existe dans la scène, on incrémente
+    while (GameObject.Find(candidate) != null);
+
+    return candidate;
 }
 
 
